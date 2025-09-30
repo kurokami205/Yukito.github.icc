@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tri Thức Triệu Phú — Quiz</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <!-- ======= M E N U ======= -->
+    <section id="screen-menu" class="screen active">
+      <div class="brand">
+        <div class="logo-ring"></div>
+        <h1>TRI THỨC TRIỆU PHÚ</h1>
+        <p class="tagline">Kiến thức sáng như đèn sân khấu.</p>
+      </div>
+      <div class="menu-card">
+        <label>Danh xưng người chơi</label>
+        <input id="player-name" placeholder="Nhập tên (vd: Bệ hạ)" />
+        <div class="row">
+          <div class="field">
+            <label>Cấp độ</label>
+            <select id="level"></select>
+          </div>
+          <div class="field">
+            <label>Số câu</label>
+            <select id="question-count">
+              <option value="10" selected>10</option>
+              <option value="15">15</option>
+              <option value="20">20</option>
+            </select>
+          </div>
+        </div>
+        <div class="menu-actions">
+          <button id="btn-play" class="primary">Chơi ngay</button>
+          <button id="btn-leaderboard">Bảng xếp hạng</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= G A M E ======= -->
+    <section id="screen-game" class="screen">
+      <div class="hud">
+        <div class="hud-left">
+          <div class="meter">
+            Câu <span id="q-index">1</span>/<span id="q-total">10</span>
+          </div>
+          <div class="meter">Điểm: <span id="score">0</span></div>
+          <div class="meter">Cấp: <span id="hud-level">1</span></div>
+        </div>
+        <div class="hud-center">
+          <div id="question" class="question">Câu hỏi</div>
+          <div id="answers" class="answers"></div>
+          <div id="hint" class="hint"></div>
+          <div class="nav-row">
+            <button id="next-btn" class="primary hidden">Câu tiếp</button>
+            <button id="btn-exit" class="ghost">Thoát</button>
+          </div>
+        </div>
+        <aside class="ladder hud-right">
+          <ul id="money-ladder"></ul>
+          <div class="lifelines">
+            <button id="ll-5050" title="Loại bỏ 2 sai">50:50</button>
+            <button id="ll-hint" title="Gợi ý">Gợi ý</button>
+            <button id="ll-skip" title="Bỏ qua">Bỏ qua</button>
+            <button id="ll-reveal" class="locked" title="Mở sau câu 5">Lộ đáp án 🔒</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ======= R E S U L T ======= -->
+    <section id="screen-result" class="screen">
+      <div class="result-card">
+        <h2>Kết thúc vòng chơi</h2>
+        <p id="result-text"></p>
+        <div class="result-actions">
+          <button id="btn-replay" class="primary">Chơi lại</button>
+          <button id="btn-menu" class="ghost">Về menu</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= L E A D E R B O A R D ======= -->
+    <section id="screen-leaderboard" class="screen">
+      <h2>Bảng xếp hạng (Top 10)</h2>
+      <table class="table">
+        <thead>
+          <tr><th>Hạng</th><th>Tên</th><th>Điểm</th><th>Cấp</th><th>Ngày</th></tr>
+        </thead>
+        <tbody id="lb-body"></tbody>
+      </table>
+      <div class="lb-actions">
+        <button id="btn-lb-back">Quay lại</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } 
+      from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCXg_UvP08-0x01t9vaen_0Y9-Gxgvqnvg",
+      authDomain: "yukito-a8bd4.firebaseapp.com",
+      projectId: "yukito-a8bd4",
+      storageBucket: "yukito-a8bd4.firebasestorage.app",
+      messagingSenderId: "509237380463",
+      appId: "1:509237380463:web:a18644bf122aefaa7a949a",
+      measurementId: "G-L0343VPH7F"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.addScore = async (name, score, level) => {
+      await addDoc(collection(db, "scores"), {
+        name: (name || "Người chơi").slice(0,30),
+        score: Number(score) || 0,
+        level: Number(level) || 1,
+        createdAt: serverTimestamp()
+      });
+    };
+
+    window.loadLeaderboard = async () => {
+      const q = query(collection(db, "scores"), orderBy("score", "desc"), limit(10));
+      const snap = await getDocs(q);
+      let rows = ""; let i = 1;
+      snap.forEach(doc => {
+        const d = doc.data();
+        const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString("vi-VN") : "...";
+        rows += `<tr>
+          <td>${i++}</td>
+          <td>${d.name}</td>
+          <td>${d.score}</td>
+          <td>${d.level}</td>
+          <td>${date}</td>
+        </tr>`;
+      });
+      document.getElementById("lb-body").innerHTML = rows || "<tr><td colspan=5>Chưa có dữ liệu</td></tr>";
+    };
+  </script>
+</body>
+</html>
